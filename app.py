@@ -5,6 +5,13 @@ from datetime import date, datetime, timedelta
 
 import database as db
 import payroll_engine as pe
+import auth
+
+st.set_page_config(page_title="Dark Store Attendance Tracker", layout="wide")
+
+if not auth.check_auth():
+    auth.login_page()
+    st.stop()
 
 db.init_db()
 
@@ -117,11 +124,12 @@ def build_attendance_calendar_html(emp_id, month, year, doj):
 </div>
 """
 
-st.set_page_config(page_title="Dark Store Attendance Tracker", layout="wide")
-
 # ── Sidebar navigation ─────────────────────────────────────────────────────────
 PAGES = ["Employee Directory", "Daily Attendance Logger", "Payroll Calculator", "Validation Tests"]
 page = st.sidebar.radio("Navigation", PAGES)
+st.sidebar.divider()
+if st.sidebar.button("Logout", use_container_width=True):
+    auth.logout()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — EMPLOYEE DIRECTORY
