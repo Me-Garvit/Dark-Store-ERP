@@ -14,7 +14,7 @@ def _get_db_url():
 
 @contextmanager
 def get_connection():
-    conn = psycopg2.connect(_get_db_url())
+    conn = psycopg2.connect(_get_db_url(), sslmode="require", connect_timeout=10)
     try:
         yield conn
         conn.commit()
