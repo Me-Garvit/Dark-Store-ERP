@@ -188,23 +188,29 @@ if page == "Employee Directory":
                     new_ifsc = ec2.text_input("IFSC Code", value=emp["ifsc_code"] or "")
 
                     if st.form_submit_button("Save Changes", type="primary"):
-                        dup = db.find_duplicate_employee(new_contact, new_name, exclude_id=eid)
-                        if dup:
-                            if dup["field"] == "contact":
-                                st.error(f"Contact already belongs to '{dup['existing_name']}' (ID {dup['existing_id']}).")
-                            else:
-                                st.error(f"Employee named '{dup['existing_name']}' (ID {dup['existing_id']}) already exists.")
+                        if not new_name.strip() or new_salary <= 0:
+                            st.error("Name and salary are required.")
                         else:
-                            db.update_employee(
-                                eid,
-                                name=new_name, contact=new_contact, gender=new_gender,
-                                doj=str(new_doj), status=new_status,
-                                base_salary=new_salary, bank_name=new_bank,
-                                bank_account=new_acc, ifsc_code=new_ifsc,
-                                default_shift=new_def_shift,
-                            )
-                            st.success("Profile saved.")
-                            st.rerun()
+                            try:
+                                dup = db.find_duplicate_employee(new_contact, new_name, exclude_id=eid)
+                                if dup:
+                                    if dup["field"] == "contact":
+                                        st.error(f"Contact already belongs to '{dup['existing_name']}' (ID {dup['existing_id']}).")
+                                    else:
+                                        st.error(f"Employee named '{dup['existing_name']}' (ID {dup['existing_id']}) already exists.")
+                                else:
+                                    db.update_employee(
+                                        eid,
+                                        name=new_name.strip(), contact=new_contact.strip(), gender=new_gender,
+                                        doj=str(new_doj), status=new_status,
+                                        base_salary=new_salary, bank_name=new_bank.strip(),
+                                        bank_account=new_acc.strip(), ifsc_code=new_ifsc.strip(),
+                                        default_shift=new_def_shift,
+                                    )
+                                    st.success("Profile saved.")
+                                    st.rerun()
+                            except Exception as e:
+                                st.error(f"Database error: {str(e)}")
 
                 st.divider()
                 st.markdown("**Danger Zone**")
@@ -213,9 +219,12 @@ if page == "Employee Directory":
                     key=f"confirm_del_{eid}",
                 ):
                     if st.button("Delete Employee", key=f"del_emp_{eid}", type="primary"):
-                        db.delete_employee(eid)
-                        st.success(f"'{emp['name']}' deleted.")
-                        st.rerun()
+                        try:
+                            db.delete_employee(eid)
+                            st.success(f"'{emp['name']}' deleted.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Database error: {str(e)}")
 
             # ── TAB 2: ATTENDANCE CALENDAR + AMENDMENT ─────────────────────────
             with t_attendance:
@@ -289,17 +298,31 @@ if page == "Employee Directory":
                 btn1, btn2 = st.columns(2)
                 if btn1.button("Save", key=f"amend_save_{eid}", type="primary"):
                     if sel_status == "—":
-                        st.warning("Select a status before saving.")
+                        if existing_rec:
+                            try:
+                                db.delete_attendance(eid, amend_date)
+                                st.success(f"Record for {amend_date} cleared.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Database error: {str(e)}")
+                        else:
+                            st.warning("Select a status before saving.")
                     else:
-                        db.upsert_attendance(eid, amend_date, sel_status, sel_shift)
-                        st.success(f"Attendance saved: {amend_date} → {sel_status} / {sel_shift}")
-                        st.rerun()
+                        try:
+                            db.upsert_attendance(eid, amend_date, sel_status, sel_shift)
+                            st.success(f"Attendance saved: {amend_date} → {sel_status} / {sel_shift}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Database error: {str(e)}")
 
                 if btn2.button("Clear Record", key=f"amend_clear_{eid}"):
                     if existing_rec:
-                        db.delete_attendance(eid, amend_date)
-                        st.success(f"Record for {amend_date} cleared.")
-                        st.rerun()
+                        try:
+                            db.delete_attendance(eid, amend_date)
+                            st.success(f"Record for {amend_date} cleared.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Database error: {str(e)}")
                     else:
                         st.info("Nothing to clear for this date.")
 
@@ -357,19 +380,25 @@ if page == "Employee Directory":
             acc     = a2.text_input("Bank Account Number")
             ifsc    = a2.text_input("IFSC Code")
             if st.form_submit_button("Add Employee"):
-                if not name or salary <= 0:
+                if not name.strip() or salary <= 0:
                     st.error("Name and salary are required.")
                 else:
-                    dup = db.find_duplicate_employee(contact, name)
-                    if dup:
-                        if dup["field"] == "contact":
-                            st.error(f"Contact number already belongs to '{dup['existing_name']}' (ID {dup['existing_id']}). Cannot add duplicate.")
+                    try:
+                        dup = db.find_duplicate_employee(contact, name)
+                        if dup:
+                            if dup["field"] == "contact":
+                                st.error(f"Contact number already belongs to '{dup['existing_name']}' (ID {dup['existing_id']}). Cannot add duplicate.")
+                            else:
+                                st.error(f"An employee named '{dup['existing_name']}' (ID {dup['existing_id']}) already exists. Cannot add duplicate.")
                         else:
-                            st.error(f"An employee named '{dup['existing_name']}' (ID {dup['existing_id']}) already exists. Cannot add duplicate.")
-                    else:
-                        db.add_employee(name, contact, gender, doj, salary, acc, bank, ifsc, def_shift)
-                        st.toast(f"✅ Successfully added the employee — {name}", icon="🎉")
-                        st.rerun()
+                            db.add_employee(
+                                name.strip(), contact.strip(), gender, doj, salary,
+                                acc.strip(), bank.strip(), ifsc.strip(), def_shift
+                            )
+                            st.toast(f"✅ Successfully added the employee — {name.strip()}", icon="🎉")
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Database error: {str(e)}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -428,18 +457,27 @@ elif page == "Daily Attendance Logger":
                                           key=f"sh_{emp['id']}", label_visibility="collapsed")
 
             if row[3].button("✕", key=f"del_{emp['id']}"):
-                db.delete_attendance(emp["id"], log_date)
-                st.rerun()
+                try:
+                    db.delete_attendance(emp["id"], log_date)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Database error: {str(e)}")
 
-            if sel_status != "—":
-                changes[emp["id"]] = (sel_status, sel_shift)
+            # Collect choices for all employees
+            changes[emp["id"]] = (sel_status, sel_shift)
 
     st.divider()
     if st.button("Save Attendance", type="primary"):
-        for emp_id, (status, shift) in changes.items():
-            db.upsert_attendance(emp_id, log_date, status, shift)
-        st.success(f"Attendance saved for {log_date}.")
-        st.rerun()
+        try:
+            for emp_id, (status, shift) in changes.items():
+                if status == "—":
+                    db.delete_attendance(emp_id, log_date)
+                else:
+                    db.upsert_attendance(emp_id, log_date, status, shift)
+            st.success(f"Attendance saved for {log_date}.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Database error: {str(e)}")
 
     # Summary for the selected date
     st.subheader(f"Summary — {log_date}")
@@ -475,28 +513,35 @@ elif page == "Payroll Calculator":
             st.warning("No employees found.")
         else:
             rows = []
+            db_error = False
             for emp in all_emps:
                 doj = datetime.strptime(emp["doj"], "%Y-%m-%d").date()
                 # Skip employees who hadn't joined yet this month
                 if (doj.year, doj.month) > (sel_year, sel_month):
                     continue
-                result = pe.calculate_payout(emp["id"], sel_month, sel_year)
-                rows.append(result)
+                try:
+                    result = pe.calculate_payout(emp["id"], sel_month, sel_year)
+                    rows.append(result)
+                except Exception as e:
+                    st.error(f"Database error while calculating for {emp['name']}: {str(e)}")
+                    db_error = True
+                    break
 
-            if rows:
-                df = pd.DataFrame(rows)[[
-                    "name", "days_present", "leaves_taken", "leave_pool",
-                    "excess_leaves", "daily_rate", "total_pay_days", "final_payout"
-                ]]
-                df.columns = ["Employee", "Days Present", "Leaves", "Pool",
-                              "Excess Leaves", "Daily Rate (₹)", "Pay Days", "Payout (₹)"]
-                df["Daily Rate (₹)"] = df["Daily Rate (₹)"].map(lambda x: f"₹{x:,.2f}")
-                df["Payout (₹)"]     = df["Payout (₹)"].map(lambda x: f"₹{x:,.2f}")
-                st.dataframe(df, use_container_width=True, hide_index=True)
-                total = sum(r["final_payout"] for r in rows)
-                st.metric("Total Payroll", f"₹{total:,.2f}")
-            else:
-                st.info("No employees were employed during this month.")
+            if not db_error:
+                if rows:
+                    df = pd.DataFrame(rows)[[
+                        "name", "days_present", "leaves_taken", "leave_pool",
+                        "excess_leaves", "daily_rate", "total_pay_days", "final_payout"
+                    ]]
+                    df.columns = ["Employee", "Days Present", "Leaves", "Pool",
+                                  "Excess Leaves", "Daily Rate (₹)", "Pay Days", "Payout (₹)"]
+                    df["Daily Rate (₹)"] = df["Daily Rate (₹)"].map(lambda x: f"₹{x:,.2f}")
+                    df["Payout (₹)"]     = df["Payout (₹)"].map(lambda x: f"₹{x:,.2f}")
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    total = sum(r["final_payout"] for r in rows)
+                    st.metric("Total Payroll", f"₹{total:,.2f}")
+                else:
+                    st.info("No employees were employed during this month.")
 
     st.divider()
     st.subheader("Individual Breakdown")
