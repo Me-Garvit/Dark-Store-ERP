@@ -139,10 +139,10 @@ def calculate_payout(emp_id, month, year, persist=True):
     leave_pool = calculate_leave_pool(emp_id, month, year)
     excess_leaves = max(0.0, leaves_taken - leave_pool)
 
-    # 5. Calculate payout
-    max_possible_salary = total_days_employed * daily_rate
-    final_payout = max(0.0, max_possible_salary - excess_leaves * daily_rate)
-    total_pay_days = max(0.0, total_days_employed - excess_leaves)
+    # 5. Calculate payout — pay only for logged days (present + valid leave)
+    total_logged_days = effective_present + leaves_taken
+    total_pay_days = max(0.0, total_logged_days - excess_leaves)
+    final_payout = max(0.0, total_pay_days * daily_rate)
 
     result = {
         "employee_id": emp_id,
