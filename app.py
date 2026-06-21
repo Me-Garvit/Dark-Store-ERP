@@ -573,8 +573,7 @@ elif page == "Payroll Calculator":
             n3.metric("Final Payout",  f"₹{result['final_payout']:,.2f}")
 
             st.caption(
-                f"Formula: ({result['days_present']} present + {result['leave_pool']} pool "
-                f"− {result['excess_leaves']} excess) × ₹{result['daily_rate']:,.2f} "
+                f"Formula: {result['total_pay_days']} pay days × ₹{result['daily_rate']:,.2f} "
                 f"= ₹{result['final_payout']:,.2f}"
             )
 

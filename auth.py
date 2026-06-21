@@ -6,8 +6,6 @@ from streamlit_cookies_controller import CookieController
 _COOKIE_NAME = "ats_auth"
 _COOKIE_TTL  = 7  # days
 
-_cookie_controller = CookieController()
-
 
 def _hash(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex()
@@ -23,7 +21,8 @@ def check_auth() -> bool:
     if st.session_state.get("authenticated", False):
         return True
     try:
-        token = _cookie_controller.get(_COOKIE_NAME)
+        controller = CookieController()
+        token = controller.get(_COOKIE_NAME)
         if token and token == _expected_cookie_value():
             st.session_state.authenticated = True
             return True
@@ -64,7 +63,11 @@ def _verify(username: str, password: str):
 
     if username == expected_user and _hash(password, salt) == expected_hash:
         st.session_state.authenticated = True
-        _cookie_controller.set(_COOKIE_NAME, _expected_cookie_value(), max_age=_COOKIE_TTL * 86400)
+        try:
+            controller = CookieController()
+            controller.set(_COOKIE_NAME, _expected_cookie_value(), max_age=_COOKIE_TTL * 86400)
+        except Exception:
+            pass
         st.rerun()
     else:
         st.error("Invalid username or password.")
@@ -72,5 +75,9 @@ def _verify(username: str, password: str):
 
 def logout():
     st.session_state.authenticated = False
-    _cookie_controller.remove(_COOKIE_NAME)
+    try:
+        controller = CookieController()
+        controller.remove(_COOKIE_NAME)
+    except Exception:
+        pass
     st.rerun()

@@ -68,7 +68,7 @@ def init_db():
                 month INTEGER NOT NULL,
                 year INTEGER NOT NULL,
                 days_present REAL NOT NULL,
-                leaves_taken INTEGER NOT NULL,
+                leaves_taken REAL NOT NULL,
                 leave_pool REAL NOT NULL,
                 daily_rate REAL NOT NULL,
                 final_payout REAL NOT NULL,
@@ -77,6 +77,14 @@ def init_db():
                 FOREIGN KEY (employee_id) REFERENCES employees(id)
             )
         """)
+        # Migration: fix leaves_taken if it was created as INTEGER
+        c.execute("""
+            SELECT data_type FROM information_schema.columns
+            WHERE table_name = 'payroll_records' AND column_name = 'leaves_taken'
+        """)
+        col = c.fetchone()
+        if col and col["data_type"] == "integer":
+            c.execute("ALTER TABLE payroll_records ALTER COLUMN leaves_taken TYPE REAL")
 
 
 # ── Employee CRUD ──────────────────────────────────────────────────────────────
